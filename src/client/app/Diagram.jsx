@@ -5,6 +5,19 @@ import Argument from './Argument.jsx';
 import Element from './Element.jsx';
 import Rule from './Rule.jsx'
 
+var JTable = joint.shapes.basic.Generic.extend({
+    markup: '<g class="rotatable"><g class="scalable"><rect class="main"/><rect class = "header"/></g><text/></g>',
+
+    defaults: joint.util.deepSupplement({
+        type: 'JTable',
+        attrs: {
+            '.main': { fill: 'black', stroke: 'black', 'follow-scale': true, width: 100, height: 70 },
+            '.header': { fill: 'white', stroke: 'black', 'follow-scale': true, width: 100, height: 20 },
+            'text': { 'font-size': 13, 'ref-x': .5, 'ref-y': .5, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle' }
+        }
+    }, joint.shapes.basic.Generic.prototype.defaults)
+});
+
 class Diagram extends React.Component {
 
   constructor(props) {
@@ -14,15 +27,15 @@ class Diagram extends React.Component {
 
     this.cells = [];
     for (let rule of this.argument.rules) {
-      var rect1 = new joint.shapes.basic.Rect({
+      var rect1 = new JTable({
         position: { x: 100, y: 30 },
-        size: { width: 100, height: 30 },
-        attrs: { rect: { fill: 'blue' }, text: { text: rule.from.type + rule.from.desc, fill: 'white' } }
+        size: { width: 200, height: 100 },
+        attrs: { '.main': { fill: 'blue' }, text: { text: rule.from.type + rule.from.desc, fill: 'white' } }
       });
-      var rect2 = new joint.shapes.basic.Rect({
+      var rect2 = new JTable({
         position: { x: 100, y: 30 },
-        size: { width: 100, height: 30 },
-        attrs: { rect: { fill: 'blue' }, text: { text: rule.to.type + rule.to.desc, fill: 'white' } }
+        size: { width: 200, height: 100 },
+        attrs: { '.main': { fill: 'blue' }, text: { text: rule.to.type + rule.to.desc, fill: 'white' } }
       });
       rect2.translate(300);
       var link = new joint.dia.Link({
