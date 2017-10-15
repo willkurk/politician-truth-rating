@@ -17,7 +17,8 @@
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "webpack": "^3.6.0",
-    "jointjs":"*"
+    "jointjs":"*",
+    "jquery":"*"
   },
   "scripts": {
     "dev": "webpack -d --watch",
