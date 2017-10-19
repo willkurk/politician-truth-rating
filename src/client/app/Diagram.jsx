@@ -93,42 +93,58 @@ class Diagram extends React.Component {
     this.argument = this.props.argument;
 
     this.cells = [];
+    var elements = {};
+    var links = [];
     for (let rule of this.argument.rules) {
-      var rect1 = new joint.shapes.html.JTable({
-        position: { x: 100, y: 30 },
-        size: { width: 300, height: 100 },
-        attrs: { '.main': { fill: 'white' }, 
-              ".headerText": { text: rule.from.type, fill: 'black' }, 
-              ".mainText": { text: rule.from.desc, fill: 'black' },
-              ".confText": { text: "100%", fill: 'black' }}
-      });
-      var ruleRect = new joint.shapes.html.JTable({
-        position: { x: 100, y: 200 },
-        size: { width: 300, height: 100 },
-        attrs: { '.main': { fill: 'white' }, 
-              ".headerText": { text: "Rule", fill: 'black' }, 
-              ".mainText": { text: rule.name, fill: 'black' },
-              ".confText": { text: "", fill: 'black' }}   
-      });
-      var rect2 = new joint.shapes.html.JTable({
-        position: { x: 100, y: 370 },
-        size: { width: 300, height: 100 },
-        attrs: { '.main': { fill: 'white' }, 
-              ".headerText": { text: rule.to.type, fill: 'black' }, 
-              ".mainText": { text: rule.to.desc, fill: 'black' },
-              ".confText": { text: "100%", fill: 'black' }}   
-      });
-      var link1 = new joint.dia.Link({
-          source: { id: rect1.id },
-          target: { id: ruleRect.id }
-      });
-      var link2 = new joint.dia.Link({
-          source: { id: ruleRect.id },
-          target: { id: rect2.id }
-      });
-      this.cells = this.cells.concat(
-        [rect1,rect2,ruleRect,link1,link2]);
+      if (!elements[rule.id] ) {
+        elements[rule.id] = new joint.shapes.html.JTable({
+          position: { x: 100, y: 100 },
+          size: { width: 300, height: 100 },
+          attrs: { '.main': { fill: 'white' }, 
+                ".headerText": { text: "Rule", fill: 'black' }, 
+                ".mainText": { text: rule.name, fill: 'black' },
+                ".confText": { text: "", fill: 'black' }}   
+        });
+      }
+
+      for (var i = 0; i < rule.from.length; i++) {
+        if (!elements[rule.from[i].id] ) {
+          elements[rule.from[i].id] = new joint.shapes.html.JTable({
+            position: { x: 100, y: 100 },
+            size: { width: 300, height: 100 },
+            attrs: { '.main': { fill: 'white' }, 
+                ".headerText": { text: rule.from[i].type, fill: 'black' }, 
+                ".mainText": { text: rule.from[i].desc, fill: 'black' },
+                ".confText": { text: "100%", fill: 'black' }}
+          });
+          
+        }
+        links.push(new joint.dia.Link({
+            source: { id: elements[rule.from[i].id].id},
+            target: { id: elements[rule.id].id }
+          }));  
+      }
+
+      if (!elements[rule.to.id] ) {
+        elements[rule.to.id] = new joint.shapes.html.JTable({
+          position: { x: 100, y: 170 },
+          size: { width: 300, height: 100 },
+          attrs: { '.main': { fill: 'white' }, 
+                ".headerText": { text: rule.to.type, fill: 'black' }, 
+                ".mainText": { text: rule.to.desc, fill: 'black' },
+                ".confText": { text: "100%", fill: 'black' }}   
+        });
+      }
+      
+      links.push(new joint.dia.Link({
+            source: { id: elements[rule.id].id},
+            target: { id: elements[rule.to.id].id }
+          }));
     }
+    this.cells = $.map(elements, function(value, index) {
+      return [value];
+    });
+    this.cells = this.cells.concat(links);
     
   }
 
@@ -142,7 +158,7 @@ class Diagram extends React.Component {
     });
 
     this.graph.addCells(this.cells);
-
+    joint.layout.DirectedGraph.layout(this.graph, { setLinkVertices: false });
   }
 
   render() {

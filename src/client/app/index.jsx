@@ -10,12 +10,17 @@ class App extends React.Component {
   constructor(props) {
     super(props);
   
-    var element1 = new Element("Fact", "1 + 1 = 2");
-    var element2 = new Element("Premise", "2 + 2 = 4");
-    var rule = new Rule("Math", element1, element2);
+    var fact1 = new Element(1,"Fact", "The TV ad \"2012 Obama vs Romney - Democrat - Video 3 - Firms\" said \"I am Barack Obama and I approve this message.\" (B)");
+    var fact2 = new Element(2,"Fact", "The TV ad \"2012 Obama vs Romney - Democrat - Video 3 - Firms\" said \"I am Barack Obama and I approve this message.\" (B)");
+    
+    var ic1 = new Element(3,"IC", "We live in a socially dependent world. No single person can thrive without the support of a much larger group, which provides the infrastructure needed for the group to thrive.");
+    var mc1 = new Element(6,"MC", "We're all in this together, i.e. the people and the government are working together.");
+    
+    var rule1 = new Rule(4,"List of independent reasons - Comprehensive, meaning an attempt was made to include cases of all important types of reasons. ", [fact1], ic1);
+    var rule2 = new Rule(5,"Very high proof of assertion was found.", [fact2,ic1], mc1);
 
-    var elements = [element1, element2];
-    var rules = [rule];
+    var elements = [fact1,fact2,ic1,mc1];
+    var rules = [rule1,rule2];
 
     this.argument = new Argument(elements, rules);
 
@@ -25,9 +30,7 @@ class App extends React.Component {
     return (
         <div>
           <Diagram argument={this.argument} />
-	</div>
-	
-	
+	      </div>
     );
   }
 }

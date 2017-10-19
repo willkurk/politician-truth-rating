@@ -1,5 +1,6 @@
 export default class Element {
-  constructor(type, desc) {
+  constructor(id, type, desc) {
+    this.id = id;
     this.type = type;
     this.desc = desc;
   }
