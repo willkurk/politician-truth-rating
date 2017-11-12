@@ -18,7 +18,8 @@
     "react-dom": "^16.0.0",
     "webpack": "^3.6.0",
     "jointjs":"*",
-    "jquery":"*"
+    "jquery":"*",
+    "annotator":"2.0.0-alpha.3"
   },
   "scripts": {
     "dev": "webpack -d --watch",

@@ -21,7 +21,7 @@ joint.shapes.html.JTable = joint.shapes.basic.Generic.extend({
         }
     }, joint.shapes.basic.Generic.prototype.defaults)
 });
-
+var frame;
 joint.shapes.html.JTableView = joint.dia.ElementView.extend({
 
         template: [
@@ -33,7 +33,6 @@ joint.shapes.html.JTableView = joint.dia.ElementView.extend({
         initialize: function() {
             _.bindAll(this, 'updateBox');
             joint.dia.ElementView.prototype.initialize.apply(this, arguments);
-
             this.$box = $(_.template(this.template)());
             // Prevent paper from handling pointerdown.
             this.$box.find('input,select').on('mousedown click', function(evt) {
@@ -56,8 +55,8 @@ joint.shapes.html.JTableView = joint.dia.ElementView.extend({
             this.$box.find('select').css({
               "position": "absolute",
               "pointer-events": "auto",
-              "top": "10px",
-              "left": "10px"
+              "top": "1px",
+              "left": "1px"
             })
 
             this.updateBox();
@@ -69,14 +68,15 @@ joint.shapes.html.JTableView = joint.dia.ElementView.extend({
             return this;
         },
         updateBox: function() {
+            var frameBox = frame.getBoundingClientRect();
             // Set the position and dimension of the box so that it covers the JointJS element.
             var bbox = this.model.getBBox();
             // Example of updating the HTML with a data stored in the cell model.
             this.$box.css({
                 width: bbox.width,
                 height: bbox.height,
-                left: bbox.x,
-                top: bbox.y,
+                left: frameBox.x + bbox.x,
+                top: frameBox.y + bbox.y,
                 transform: 'rotate(' + (this.model.get('angle') || 0) + 'deg)'
             });
         },
@@ -91,7 +91,6 @@ class Diagram extends React.Component {
     super(props);
     this.graph = new joint.dia.Graph;
     this.argument = this.props.argument;
-
     this.cells = [];
     var elements = {};
     var links = [];
@@ -103,7 +102,8 @@ class Diagram extends React.Component {
           attrs: { '.main': { fill: 'white' }, 
                 ".headerText": { text: "Rule", fill: 'black' }, 
                 ".mainText": { text: rule.name, fill: 'black' },
-                ".confText": { text: "", fill: 'black' }}   
+                ".confText": { text: "", fill: 'black' },
+          "frame": this.refs.myDiagramDiv}   
         });
       }
 
@@ -115,7 +115,8 @@ class Diagram extends React.Component {
             attrs: { '.main': { fill: 'white' }, 
                 ".headerText": { text: rule.from[i].type, fill: 'black' }, 
                 ".mainText": { text: rule.from[i].desc, fill: 'black' },
-                ".confText": { text: "100%", fill: 'black' }}
+                ".confText": { text: "100%", fill: 'black' },
+                "frame": this.refs.myDiagramDiv}
           });
           
         }
@@ -132,7 +133,8 @@ class Diagram extends React.Component {
           attrs: { '.main': { fill: 'white' }, 
                 ".headerText": { text: rule.to.type, fill: 'black' }, 
                 ".mainText": { text: rule.to.desc, fill: 'black' },
-                ".confText": { text: "100%", fill: 'black' }}   
+                ".confText": { text: "100%", fill: 'black' },
+                "frame": this.refs.myDiagramDiv}
         });
       }
       
@@ -149,6 +151,7 @@ class Diagram extends React.Component {
   }
 
   componentDidMount() {
+    frame = this.refs.myDiagramDiv;
     this.paper = new joint.dia.Paper({
         el:  ReactDOM.findDOMNode(this.refs.myDiagramDiv),
         width: 1000,
