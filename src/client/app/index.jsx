@@ -30,6 +30,7 @@ class App extends React.Component {
     return (
         <div>
           <Diagram argument={this.argument} />
+          <div id="diagram"></div>
 	      </div>
     );
   }

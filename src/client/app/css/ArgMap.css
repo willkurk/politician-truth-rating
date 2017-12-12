@@ -1,0 +1,97 @@
+body {
+    font-family: Verdana, Helvetica, Arial, sans-serif; 
+    background-color: LightGray;
+    margin: 5px;
+}
+#textbox {
+    float: left;
+    width: calc(30% - 15px); 
+    /* font-family: Courier New, Courier, monospace; */
+    font-family: Verdana, Helvetica, Arial, sans-serif; /* Required, doesn't inherit from body. */
+    background-color: white;
+    border: 1px solid gray;
+    padding: 5px;
+    resize: none;
+}
+.arrow {
+    position: absolute;
+    width: 15px;
+}        
+#diagram {
+    float: right;
+    position: relative;
+    width: 70%;
+    /* overflow: auto; */
+    background-color: rgb(236, 239, 255); /* Very light blue */            
+    border: 1px solid gray;
+    /* transform: scale(.75, .75); */
+    transform-origin: center center;
+}
+#arrowsheet {
+    width: 100%;
+}
+.node {
+    position: absolute;
+    z-index: 1; /* So arrows are behind nodes. */
+    border-radius: 5px; /* No border, causes a slight jump when selected. */
+    cursor: pointer;
+    box-shadow: 3px 3px 8px #9c9c9c;
+}
+.node-selected {
+    box-shadow: 0 0 15px #5870be;
+    border: 1px solid rgb(68, 68, 68);
+    z-index: 10; /* So in front of all other nodes. */
+}
+.node-drop-highlight { /* For dragover event */
+    border: 1px solid blue;
+    box-shadow: 0 0 15px #1e48c7;
+}
+.node-header {
+    position: relative;
+    border: 1px solid LightGray;
+    border-bottom: none;
+    border-radius: 5px 5px 0 0;
+    padding: 2px 5px;
+}
+.node-is-factual {
+    background-color: #C9E9DE; /* Light green */
+}
+.node-is-rule {
+    background-color: #ffffdd; /* Light yellow */
+}
+.node-weight, .node-name, .node-cl, .node-body-text, .node-body-database {
+    user-select: none; /* Prevent selection of text with mouse drag. */
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+.node-weight {
+    position: absolute;
+    top: 3px;
+    left: .25em; 
+    border-radius: 4px;
+}        
+.node-name {
+    text-align: center;
+    font-weight: bold;
+}
+.node-cl {
+    position: absolute;
+    top: 2px;
+    right: .5em; 
+}
+.node-body-text, .node-body-database {
+    text-align: left;
+    padding: 1px 5px 3px 5px;
+}
+.node-body-text {
+    background-color: white;
+    border-radius: 0 0 5px 5px;
+    border: 1px solid LightGray;
+}
+.node-body-database {
+    background-color: rgb(240, 240, 240);
+    border: 1px solid LightGray;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+}
