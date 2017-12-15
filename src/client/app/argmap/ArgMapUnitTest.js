@@ -3,41 +3,46 @@
 - functions for creating the five basic types of test nodes.
 - function runHorizontaRecenterTest()
 */
-function createSampleArgumentMap() { 
+
+import ArgMapInterface from "./ArgMapInterface.js"
+import {InterfaceNode} from "./ArgMapInterface.js"
+
+
+export function createSampleArgumentMap(argMap) { 
     argMap.clearDiagram();
-    let interface = new ArgMapInterface();
+    let interfaceObj = new ArgMapInterface(argMap);
     let interfaceNode;
 
     // Add Claim
-    let claimNode = interface.addNode( createTestClaimInterfaceNode() );
+    let claimNode = interfaceObj.addNode( createTestClaimInterfaceNode() );
 
     // Add Rule to Claim
     interfaceNode = createTestRuleInterfaceNode(claimNode);
-    let rule1Node = interface.addNode( interfaceNode );
+    let rule1Node = interfaceObj.addNode( interfaceNode );
 
     // Add IntConclusion to Rule, move it to the left
     interfaceNode = createTestIntConclusionInterfaceNode(rule1Node);
     interfaceNode.offsetCenterX = -180;
-    let intConclusion1Node = interface.addNode( interfaceNode );
+    let intConclusion1Node = interfaceObj.addNode( interfaceNode );
 
     // Add Fact to the Rule, move it to the right
     interfaceNode = createTestFactInterfaceNode(rule1Node);
     interfaceNode.offsetCenterX =130;
-    interface.addNode( interfaceNode );
+    interfaceObj.addNode( interfaceNode );
 
     // Add Rule to the IntConclusion, do not move, looks fine where it is.
     interfaceNode = createTestRuleInterfaceNode(intConclusion1Node);
-    let rule2Node = interface.addNode( interfaceNode );
+    let rule2Node = interfaceObj.addNode( interfaceNode );
 
     // Add RClaim to above rule, move it to the left
     interfaceNode = createTestRClaimInterfaceNode(rule2Node);
     interfaceNode.offsetCenterX = -250;
-    interface.addNode( interfaceNode );
+    interfaceObj.addNode( interfaceNode );
 
     // Add Fact to above rule, move it to the right
     interfaceNode = createTestFactInterfaceNode(rule2Node);
     interfaceNode.offsetCenterX = 60;
-    interface.addNode( interfaceNode );
+    interfaceObj.addNode( interfaceNode );
 }
 // Create the five basic types of test nodes
 function createTestClaimInterfaceNode() {
