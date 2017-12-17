@@ -13,23 +13,33 @@ body {
     padding: 5px;
     resize: none;
 }
+#diagram-wrapper {
+    float: right;
+    position: relative;
+    width: 70%;
+    background-color: rgb(236, 239, 255); /* Very light blue, to contrast with text editor white. */            
+    border: 1px solid gray;
+    overflow: auto;
+}
+#diagram-sheet {
+    /* background-color: LightGray; /* For temp use in developing zoom feature. */
+    width: 100%;
+    height: calc(100% - 3px); /* Adjust for border to avoid bobble with up/down arrows. */
+    /* overflow: auto; */
+}
+#arrow-sheet {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+/* Height. These must be in synch. Later wrapper height will be 100%. */
+#textbox { height: 590px; /* This is diagram height - 10 for padding. */ }
+#diagram-wrapper { height: 600px; }
+
 .arrow {
     position: absolute;
     width: 15px;
 }        
-#diagram {
-    float: right;
-    position: relative;
-    width: 70%;
-    /* overflow: auto; */
-    background-color: rgb(236, 239, 255); /* Very light blue */            
-    border: 1px solid gray;
-    /* transform: scale(.75, .75); */
-    transform-origin: center center;
-}
-#arrowsheet {
-    width: 100%;
-}
 .node {
     position: absolute;
     z-index: 1; /* So arrows are behind nodes. */
@@ -39,7 +49,7 @@ body {
 }
 .node-selected {
     box-shadow: 0 0 15px #5870be;
-    border: 1px solid rgb(68, 68, 68);
+    border: 1px solid rgb(0, 0, 0);
     z-index: 10; /* So in front of all other nodes. */
 }
 .node-drop-highlight { /* For dragover event */
@@ -65,20 +75,28 @@ body {
     -webkit-user-select: none;
     -ms-user-select: none;
 }
-.node-weight {
-    position: absolute;
-    top: 3px;
-    left: .25em; 
-    border-radius: 4px;
-}        
 .node-name {
     text-align: center;
     font-weight: bold;
 }
-.node-cl {
+/* node-weight and node-cl are somewhat  mirror opposites. Weight is on left, cl is on right */
+.node-weight, .node-cl {
     position: absolute;
+}
+.node-weight { 
+    top: 4px;
+    left:  3px; 
+    /* font-stretch: condensed; Not supported in any browsers yet. */
+    transform: scaleX(.9);
+    transform-origin: left;
+}       
+.node-cl     { 
+    top: 3px;
+    right: 5px; 
+}
+.node-cl-claim {
     top: 2px;
-    right: .5em; 
+    /* font-weight: bold; */
 }
 .node-body-text, .node-body-database {
     text-align: left;
@@ -95,3 +113,9 @@ body {
     border-top: none;
     border-radius: 0 0 5px 5px;
 }
+/* Font sizes */
+.node-cl        { font-size: 14px; }
+.node-name, .node-cl-claim      { font-size: 16px; }
+.node-name-claim { font-size: 18px; letter-spacing: .6px; }
+.node-weight    { font-size: 12px; }
+.node-body-text, .node-body-database, #textbox  { font-size: 14px; }

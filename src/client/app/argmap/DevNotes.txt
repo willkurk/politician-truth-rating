@@ -1,0 +1,39 @@
+Various to dos:
+
+Implement Javascript modules. Related to this, put as many functions as possible inside classes.
+Right now some event functions could be moved to inside the class using addEventListener.
+
+Features related to node size:
+- Adjust width of node by dragging on left or right.
+- If extra text, drag node bottom down to expand it. To hide text, drag bottom up. 
+- Some sort of maximum node size, with extra text not shown. If extra text, a "more" indicator is shown,
+such as an arrow at the lower right of the text. Hover over that to see the extra text. 
+- How to differentiate between body text (in text editor) and database text? Possibly drag on bottom of
+body text section to change the height of that.
+
+Bug - Node weight runs into node number on longer weight descriptions. 
+
+Automatic row height resizing, depending on a row's nodes. Currently the first node on a new row defines
+the row's height.
+
+Better looking error dialog. There should be some great reusable ones or good examples.
+Needs to be the same dialog used with non-errors.
+
+Consider using Array.atOneBased() in certain situations to reduce bugs, improve readability.
+
+Eventually we may need a right click menu, but that may not be an ArgMap responsiblity.
+What gesture is best for selecting facts, RClaims, and rules from the database? Double click?
+Note that right click menus are slow to use. Shortcut keys and click on icon are much faster
+and more discoverable. 
+
+BROWSER TESTING - Fine on Chrome (59% market share), Firefox (13% market share), Edge (4% market share). 
+IE (13% market share, discontinued in 2015) doesn't support Javascript classes. 
+Not tested on Safari (3% market share). What about Opera?
+
+BROWSER SETTINGS 
+- Pointer events in Firefox, in about:config, set dom.w3c_pointer_events.enabled to true.
+- Module feature in Firefox, turn on with option, not yet used. See this link for browsers supported:
+     https://caniuse.com/#search=export
+
+Is this a generic rule? "If it's raining then carry an umbrella." No. This is a principle in the form of a reusable claim. To use a principle in an argument, you need the RClaim and facts, like "It's raining." The generic Apply Principle rule says "The conditions for when this principle holds are present. Therefore the principle's conclusion holds." That conclusion is the rule's conclusion. The principle CL varies. The rule CL is 100%.
+   Note, however, this IS a domain specific rule. It's possible we will want the PPKB to support domain rules, because that's how people think and it would improve usability and speed. That might radicallly improve the power of the tool. It's a new insight, a new possible feature: Domain Rules. This would be a new type of node. !!! Something to thwink about....
