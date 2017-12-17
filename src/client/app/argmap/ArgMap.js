@@ -67,15 +67,18 @@ BROWSER TESTING - Fine on Chrome (59% market share), Firefox (13% market share),
 IE (13% market share, discontinued in 2015) doesn't support Javascript classes. 
 Not tested on Safari (3% market share).
 */
-        
-let argMap; // A single global variable
 
-function initArgMap(diagram){
+import {LayoutMgr} from "./LayoutMgr.js"
+import {createSampleArgumentMap} from "./ArgMapUnitTest.js"
+import {makeNodeDraggable} from "./LayoutMgr.js"
+
+let argMap; // A single global variable
+export function initArgMap(diagram){
     argMap = new ArgMap(diagram);
-    createSampleArgumentMap();
+    createSampleArgumentMap(argMap);
     console.log('init');
 }
-class ArgMap { // Manages the entire argument diagram. The entry point class.
+export class ArgMap { // Manages the entire argument diagram. The entry point class.
     // Constants
     static get GRID()           { return 10; }
     static get DIAGRAM_PADDING(){ return 10; }
@@ -92,7 +95,7 @@ class ArgMap { // Manages the entire argument diagram. The entry point class.
         this.diagram.addEventListener('keydown',   this.mapKeydownEvent,   false);
         this.nodes = [];
         this.claim = null;
-        this.layoutMgr = new LayoutMgr(this.diagram);
+        this.layoutMgr = new LayoutMgr(this.diagram,this);
     }
     // Factory methods. Later delete methods will be added.
     addNodeClaim() {
@@ -194,7 +197,7 @@ class ArgMap { // Manages the entire argument diagram. The entry point class.
         this.diagram.innerHTML = '';
         this.claim = null;
         this.nodes = [];
-        this.layoutMgr = new LayoutMgr(this.diagram); // Resets it
+        this.layoutMgr = new LayoutMgr(this.diagram, this); // Resets it
     }
     getFirstSelectedNode() { // Returns the first selected node or false if none are selected.
         for (let i = 0; i < this.nodes.length; i++){
@@ -216,7 +219,7 @@ class ArgMap { // Manages the entire argument diagram. The entry point class.
     _prepareNewNode(node){
         this.diagram.appendChild(node.nodeDiv);
         this.nodes.push(node);
-        makeNodeDraggable(node); // In LayoutMgr.
+        makeNodeDraggable(node, this); // In LayoutMgr.
         return node;
     }
 } // End class ArgMap

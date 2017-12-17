@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import $ from "jquery";
+import {initArgMap} from "./argmap/ArgMap.js"
 
 class Diagram extends React.Component {
 

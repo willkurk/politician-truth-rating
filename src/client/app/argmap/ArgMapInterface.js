@@ -3,34 +3,40 @@
 - class InterfaceNode
 */
 
-class ArgMapInterface { 
+import {ArgMap} from "./ArgMap.js"
+
+export default class ArgMapInterface { 
     // The interface for external use of the argument map system. 
     // Ideally all eternal calls use the interface, except for node methods. This allows updating
     // an existing node, depending on what happens in the text.
+
+    constructor(argMap) {
+        this.argMap = argMap;
+    }
 
     addNode(interfaceNode) { // Returns new node if okay or false if not.
         // Check to see the node has been properly prepared.
         if (! interfaceNode.integrityIsOkay() ) { return false; }
         
         if ( interfaceNode.nodeType === ArgMap.CLAIM ) {
-            argMap.layoutMgr.dropOnEmptyDiagram('Claim', interfaceNode);
-            return argMap.getFirstSelectedNode();
+            this.argMap.layoutMgr.dropOnEmptyDiagram('Claim', interfaceNode);
+            return this.argMap.getFirstSelectedNode();
 
         } else if ( interfaceNode.nodeType === ArgMap.RULE ) {
-            argMap.layoutMgr.dropOnConclusion('Rule', interfaceNode);
-            return argMap.getFirstSelectedNode();
+            this.argMap.layoutMgr.dropOnConclusion('Rule', interfaceNode);
+            return this.argMap.getFirstSelectedNode();
 
         } else if ( interfaceNode.nodeType === ArgMap.INTCONCLUSION ) {
-            argMap.layoutMgr.dropOnRule('IntConclusion', interfaceNode);
-            return argMap.getFirstSelectedNode();
+            this.argMap.layoutMgr.dropOnRule('IntConclusion', interfaceNode);
+            return this.argMap.getFirstSelectedNode();
 
         } else if ( interfaceNode.nodeType === ArgMap.FACT ) {
-            argMap.layoutMgr.dropOnRule('Fact', interfaceNode);
-            return argMap.getFirstSelectedNode();
+            this.argMap.layoutMgr.dropOnRule('Fact', interfaceNode);
+            return this.argMap.getFirstSelectedNode();
 
         } else if ( interfaceNode.nodeType === ArgMap.RCLAIM ) {
-            argMap.layoutMgr.dropOnRule('RClaim', interfaceNode);
-            return argMap.getFirstSelectedNode();
+            this.argMap.layoutMgr.dropOnRule('RClaim', interfaceNode);
+            return this.argMap.getFirstSelectedNode();
 
         } else {
             return false;
@@ -40,13 +46,13 @@ class ArgMapInterface {
         // *********** To do
     }
     getClaimNode() { // The root of the tree. Returns null if none.
-        return argMap.claim;
+        return this.argMap.claim;
     }
     clearDiagram() {
-        argMap.clearDiagram();
+        this.argMap.clearDiagram();
     }
 }
-class InterfaceNode { // Used to add nodes to the argument map. They are then discarded.
+export class InterfaceNode { // Used to add nodes to the argument map. They are then discarded.
     constructor(nodeType) {
         this.nodeType =  nodeType;  // Claim, Rule, IntConclusion, Fact, or RClaim
         this.confidenceLevel = undefined;  // Reqwuired for Fact, RClaim, Rule.
