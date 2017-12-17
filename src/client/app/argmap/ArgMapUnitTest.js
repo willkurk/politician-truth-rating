@@ -1,11 +1,17 @@
 /* Contents:
+- function clearSampleDiagram()
 - function runArgMapUnitTest()
 - functions for creating the five basic types of test nodes.
 - function runHorizontaRecenterTest()
 */
+const TEST_ARG_MAP_KEY = '1';
+
+function clearSampleDiagram() {
+    argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).clearDiagram();
+}
 function createSampleArgumentMap() { 
-    argMap.clearDiagram();
-    let interface = new ArgMapInterface();
+    clearSampleDiagram();
+    let interface = argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).interface;
     let interfaceNode;
 
     // Add Claim
@@ -62,7 +68,7 @@ function createTestIntConclusionInterfaceNode(rule) {
     node.bodyText  = "This is a rather long intermediate conclusion, one that will not hold up under analysis.";
     node.confidenceLevel = 1;
     node.lowerNode = rule;
-    node.weightIndex = 2; // How to best handle this?
+    node.weightIndex = 2; 
     return node;
 }
 function createTestFactInterfaceNode(conclusion) {
@@ -71,7 +77,7 @@ function createTestFactInterfaceNode(conclusion) {
     node.bodyDatabase = "This is the fact in the database.";
     node.confidenceLevel = .8;
     node.lowerNode = conclusion;
-    node.weightIndex = 3; // How to best handle this?
+    node.weightIndex = 3; 
     return node;
 }
 function createTestRClaimInterfaceNode(conclusion) {
@@ -80,12 +86,12 @@ function createTestRClaimInterfaceNode(conclusion) {
     node.bodyDatabase = "This is the text in the database.";
     node.confidenceLevel = .65;
     node.lowerNode = conclusion;
-    node.weightIndex = 0; // How to best handle this? 
+    node.weightIndex = 1; 
     return node;
 }
 // Other
 function runHorizontaRecenterTest() {
-    argMap.layoutMgr.horizontallyRecenterAllNodes();
+    argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).layoutMgr.horizontallyRecenterAllNodes();
 }
 // Not used
 // function showBkgPhoto() {
