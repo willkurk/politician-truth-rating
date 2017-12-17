@@ -1,7 +1,7 @@
 /* Contents: 
 - Global variables
 - initArgMap(diagramID) - Mandatory, initializes the argument map. 
-- class ArgMap - Container for the entire argument map system.
+- class ArgMap - Manages one argument map.
 - class Node - The all-important nodes/boxes that appear on the argument map.
     - class NodeConclusion extends Node - An intermedidate conclusion or a claim (final conclusion).
         This class contains zero to one NodeRules and zero to many NodeConclusions and NodeLeafs.
@@ -14,88 +14,38 @@
         - class NodeRClaim extends NodeLeaf
 - Misc functions
 - Various test functions
-
-Various to dos:
-Bug - If drag starts on the weight, the dropdown stays and the node moves. Looks terrible!
-Need to check to see if the weight is selected when starting the drag. 
-Bug - In Edge, can't change weight.
-Bug - In Firefox, select a weight starts a drag. 
-The above bugs point to the need to use our own select element. There are probably plenty to choose from.
-
-
-Bug - If diagram resized, the first drag causes a node to jump to a new position. The offsetCenterX
-needs to be adjusted when diagram width changes. Do with horizontalRecenter.
-
-Zoom bug - When dragging, the mouse point relative to the node moves. This cause user to fall off the node.
-Solve by translating the event point to the zoomed size. 
-
-Setup a single global object that contains 
-all globals, like constants and one or more argMgr instances to support multiple maps.
-    - Need a way, given an event, to get the argMap for that event. Go up event.path to div#diagram.
-    Then use that to lookup the associated argMap, using a mapOfDiagrams. Awkward but works. 
-    - Thus the global should not be argMap but argAnalysisApp with these methods:
-        .addArgMap(argMap)
-        .removeArgMap(argMap)
-        .argMapForEvent(event)
-        .argMapInterface()
-        .CLAIM, .RULE, etc and name the global variable PPKB to avoid conflicts and be readable.
-    - Within classes like LayoutMgr, pass its argMap in the constructor. Then save, possibly with
-    var to avoid use of all those "this" uses, which clutter up a program. 
-    - This refactoring would be a great task to discuss with William first.
-    - But we need a way for the ArgMap component to hide itself from external use, except through
-    ArgMapInterface. The above approach exposes all of argMap. Could solve this with
-    PPKB.argMapRegistry, PPKB.argMapInterface, and the constants as the ONLY properties or methods of PPKB
-    until futher components are added, like PPKB.textEditor. Confusing....
-
-Automatic row height resizing, depending on a row's nodes. Currently the first node on a new row defines
-the row's height. 
-
-Consider using Array.atOneBased() in certain situations to reduce bugs, improve readability.
-
-Better looking error dialog. There should be some great reusable ones or good examples.
-
-Node numbers are automatically assigned as nodes are added. However, we may discover we don't need node numbers.
-When the diagram grows too big to fit on the page, it automatically shrinks using transform. Implement zoom at the same time. Create a unit test that causes auto shrink.
-
-Eventually we'll need a right click menu, but that may not be an ArgMap responsiblity.
-What gesture is best for selecting facts, RClaims, and rules from the database? Double click?
-
-Solve the "how big should a node be on the screen" problem by going with a default and letting
-the user adjust the size of a node with the mouse by dragging on node edges.
-
-BROWSER TESTING - Fine on Chrome (59% market share), Firefox (13% market share), Edge (4% market share). 
-IE (13% market share, discontinued in 2015) doesn't support Javascript classes. 
-Not tested on Safari (3% market share).
 */
-
-import {LayoutMgr} from "./LayoutMgr.js"
-import {createSampleArgumentMap} from "./ArgMapUnitTest.js"
-import {makeNodeDraggable} from "./LayoutMgr.js"
-
-let argMap; // A single global variable
-export function initArgMap(diagram){
-    argMap = new ArgMap(diagram);
-    createSampleArgumentMap(argMap);
-    console.log('init');
-}
-export class ArgMap { // Manages the entire argument diagram. The entry point class.
+class ArgMap { // Manages one argument map. One instance per map.
     // Constants
     static get GRID()           { return 10; }
     static get DIAGRAM_PADDING(){ return 10; }
-    static get CLAIM()          { return 'Claim'; } // These values could be anything, like 1, 2, 3, 4, 5.
-    static get RULE()           { return 'Rule'; }
-    static get INTCONCLUSION()  { return 'IntConclusion'; }
-    static get FACT()           { return 'Fact'; }
-    static get RCLAIM()         { return 'RClaim'; }
+    // The five types of nodes:
+    static get CLAIM()          { return 'Claim'; } // Used as node name shown.
+    static get RULE()           { return 'Rule'; }  // Used as node name shown.
+    static get FACT()           { return 'Fact'; }  // Used as node name shown.
+    static get INTCONCLUSION()  { return 'IntConclusion'; } // Not used as node name shown.
+    static get RCLAIM()         { return 'RClaim'; }        // Not used as node name shown.
 
-    constructor(diagram) {
-        this.diagram = diagram; // document.getElementById(diagramID);
-        this.diagram.setAttribute("tabindex", 0); // So can receive focus, so can receive key down events.
-        this.diagram.addEventListener('mousedown', this.mapMousedownEvent, false);
-        this.diagram.addEventListener('keydown',   this.mapKeydownEvent,   false);
+    constructor(instanceID) { // 'diagram' is from early work. A better word is 'map' but that's an ES6 method.
+        this.instanceID = instanceID;
+        this.interface = new ArgMapInterface(instanceID, this);
+        this.diagramWrapper = document.getElementById('diagram-wrapper');
+        this.diagramWrapper.setAttribute(ArgMapsMgr.ARG_MAP_KEY, this.instanceID);
+        this.diagram = document.createElement('div');
+        this.diagram.id = 'diagram-sheet';
+        this.diagram.setAttribute(ArgMapsMgr.ARG_MAP_KEY, this.instanceID);
+        this.diagramWrapper.appendChild(this.diagram);
+        this.diagramWrapper.setAttribute('tabindex', 0); // So can receive focus, so can receive key down events.
         this.nodes = [];
         this.claim = null;
-        this.layoutMgr = new LayoutMgr(this.diagram,this);
+        this.layoutMgr = new LayoutMgr(this.diagram, this);
+        this.zoomLevel = 1;
+
+        // Use arrow functions for event registration to get a clean 'this' in the event handler.
+        // These listeners cannot be removed. That's okay because they are permanent.
+        this.diagramWrapper.addEventListener('mousedown', ()=>{ this.diagramMousedownEvent(); }, false );
+        //this.diagramWrapper.addEventListener('keydown',   ()=>{ this.diagramKeydownEvent(event); }, false );
+        this.diagramWrapper.addEventListener('keydown', this.diagramKeydownEvent, false );
     }
     // Factory methods. Later delete methods will be added.
     addNodeClaim() {
@@ -103,20 +53,20 @@ export class ArgMap { // Manages the entire argument diagram. The entry point cl
             alert("Cannot add a second claim. A diagram can have only one claim.");
             return null;
         }
-        this.claim = this._prepareNewNode( new NodeClaim() );
+        this.claim = this._prepareNewNode( new NodeClaim(this) );
         return this.claim;
     }
     addNodeIntConclusion(conclusion) {
-        return this._prepareNewNode( new NodeIntConclusion(conclusion) );
+        return this._prepareNewNode( new NodeIntConclusion(this, conclusion) );
     }
     addNodeRule(conclusion) {
-        return this._prepareNewNode( new NodeRule(conclusion) );
+        return this._prepareNewNode( new NodeRule(this, conclusion) );
     }
     addNodeFact(conclusion) {
-        return this._prepareNewNode( new NodeFact(conclusion) );
+        return this._prepareNewNode( new NodeFact(this, conclusion) );
     }
     addNodeRClaim(conclusion) {
-        return this._prepareNewNode( new NodeRClaim(conclusion) );
+        return this._prepareNewNode( new NodeRClaim(this, conclusion) );
     }
     // Other methods
     deselectAllNodes() {
@@ -128,25 +78,41 @@ export class ArgMap { // Manages the entire argument diagram. The entry point cl
         this.deselectAllNodes();
         node.selectNode();
     }
-    mapMousedownEvent(){
-        argMap.deselectAllNodes(); // Relies on event.stopPropagation() in Node.mousedownEvent().
+    diagramMousedownEvent(){
+        this.deselectAllNodes(); // Relies on event.stopPropagation() in Node.mousedownEvent().
     }
-    mapKeydownEvent(event){
-		if (event.keyCode) {
-			switch (event.keyCode) { // See http://keycode.info/ but has errors.
-				case 46: // Delete key 
-                    let node = argMap.getFirstSelectedNode();
-                    argMap.deleteNode(node);
+    diagramKeydownEvent(event){
+        let myArgMap = argMapsMgr.getArgMapForEvent(event);
+        let node;
+		if (event.key) {
+            //console.log('event.key = ' + event.key);
+			switch (event.key) { 
+				case 'Delete': case 'Del': // Del is for Edge. 
+                    node = myArgMap.getFirstSelectedNode();
+                    myArgMap.deleteNode(node);
                     break;
-                case 189: // - key to zoom smaller. Can't use control since that affects page.
-                    if (! event.ctrlKey) argMap.layoutMgr.zoomIn();
+                case '-': // - key to zoom smaller. Can't use control since that affects page.
+                    if (! event.ctrlKey) myArgMap.layoutMgr.zoomSmaller();
                     break;
-                case 187: // + key to zoom larger
-                    if (! event.ctrlKey) argMap.layoutMgr.zoomOut();
+                case '=': // + key to zoom larger
+                    if (! event.ctrlKey) myArgMap.layoutMgr.zoomLarger();
                     break;
-                case 48: // 0 key to zoom normal
-                    if (! event.ctrlKey) argMap.layoutMgr.zoomNormal();
-                    break;                    
+                case '0': // 0 key to zoom normal
+                    if (! event.ctrlKey) myArgMap.layoutMgr.zoomNormal();
+                    break; 
+                case 'ArrowUp': case 'ArrowDown': case 'Up': case 'Down': // Up and Down are for Edge.
+                    node = myArgMap.getFirstSelectedNode();
+                    if (node) {
+                        let newIndex;
+                        if (event.key === 'ArrowUp' || event.key === 'Up') {
+                            newIndex = argMapsMgr.getIncrementWeightIndex(node.weightIndex);
+                        } else {
+                            newIndex = argMapsMgr.getDecrementWeightIndex(node.weightIndex);
+                        }
+                        node.weightIndex = newIndex;
+                        myArgMap.claim.calcCL();
+                    }
+                    break;                 
 			}
 		}
     }
@@ -181,8 +147,10 @@ export class ArgMap { // Manages the entire argument diagram. The entry point cl
                 if (node.isClaim) { 
                     this.clearDiagram(); 
                 } else {
-                    this.layoutMgr.verticallyRecenterAllRows(); // For automatic delete of top row if empty.
-                    argMap.claim.calcCL();
+                    node.row.removeNode(node);
+                    this.layoutMgr.rowMgr.verticallyRecenterAllRows(); // For automatic delete of top row if empty.
+                    this.claim.calcCL();
+                    this.layoutMgr.rowMgr.renumberAllNodes();
                 }
                 return true;
             } else {
@@ -219,17 +187,20 @@ export class ArgMap { // Manages the entire argument diagram. The entry point cl
     _prepareNewNode(node){
         this.diagram.appendChild(node.nodeDiv);
         this.nodes.push(node);
-        makeNodeDraggable(node, this); // In LayoutMgr.
+        makeNodeDraggable(node); // In LayoutMgr.
         return node;
     }
 } // End class ArgMap
 class Node { 
-    constructor() {
+    static get SELECTED_CLASS()  { return 'node-selected'; }
+
+    constructor(nodeArgMap) {
+        this.argMap = nodeArgMap;
         this.isConclusion, this.isTypeLeaf; // Type leafs are Fact and RClaim.
         this.isClaim, this.isIntConclusion, this.isRule, this.isFact, this.isRClaim;
         this.nodeDiv            = document.createElement('div');
         this.nodeHeader         = document.createElement('div');
-        this.nodeWeightDiv      = document.createElement('select');
+        this.nodeWeightDiv      = document.createElement('div');
         this.nodeNameDiv        = document.createElement('div');
         this.nodeCL             = document.createElement('div');
         this.nodeBodyText       = document.createElement('div');
@@ -241,6 +212,9 @@ class Node {
         this.confidenceLevel_ = undefined; // Undefined if none.
         this.centerOnChildWhenAdded = true; // Default
         this.offsetCenterX_ = 0; // Default
+        this.weightIndex_   = -1;  // Required for Fact, RClaim, IntConclusion. -1 for no weight.
+        this.name_;
+        this.number_ = 22;
     }
     init() {
         // Setup HTML structure beginning with node class
@@ -248,6 +222,7 @@ class Node {
         this.width = 300; // The default. Later the user can resize nodes with the mouse.
         this.top   = 10;  // Default
         this.nodeDiv.style.left  = '10px'; // Default
+        this.nodeDiv.setAttribute(ArgMapsMgr.ARG_MAP_KEY, this.argMap.instanceID);
             // node-header
             if (this.isRule) { 
                 this.nodeHeader.className = 'node-header node-is-rule';
@@ -255,22 +230,18 @@ class Node {
                 this.nodeHeader.className = 'node-header node-is-factual'; 
             }
             this.nodeDiv.appendChild(this.nodeHeader);
-                // Node weight with options. Rules have no weight since only one rule.
+                // Node weight. Rules have no weight since only one rule. Claims have no weight.
                 if (this.isIntConclusion || this.isTypeLeaf) {
                     this.nodeWeightDiv.className = 'node-weight';
-                        this._addOption(this.nodeWeightDiv, 'Zero');
-                        this._addOption(this.nodeWeightDiv, 'Low');
-                        this._addOption(this.nodeWeightDiv, 'Medium');
-                        this._addOption(this.nodeWeightDiv, 'High');
-                        this._addOption(this.nodeWeightDiv, 'Central');
-                    this.nodeWeightDiv.selectedIndex = 2; // Default
                     this.nodeHeader.appendChild(this.nodeWeightDiv);
                 }
                 // node-name
                 this.nodeNameDiv.className = 'node-name';
+                if (this.isClaim) this.nodeNameDiv.classList.add("node-name-claim");
                 this.nodeHeader.appendChild(this.nodeNameDiv);
                 // node-cl
                 this.nodeCL.className = 'node-cl';
+                if (this.isClaim) this.nodeCL.classList.add("node-cl-claim"); 
                 this.nodeHeader.appendChild(this.nodeCL);
             // node-body-text
             this.nodeBodyText.className = 'node-body-text';
@@ -279,21 +250,22 @@ class Node {
             this.nodeBodyDatabase.className = 'node-body-database';
             this.nodeBodyDatabase.style.display = 'none'; // Show only if contains text.
             this.nodeDiv.appendChild(this.nodeBodyDatabase);
-        // Events
-        this.nodeDiv.addEventListener('mousedown', this.nodeMousedownEvent, false);
+        // Events. Arrow function used since this is a permanent event.
+        this.nodeDiv.addEventListener('mousedown', this.nodeMousedownEvent, false );
     } // End init
 
-    nodeMousedownEvent(event){ 
-        argMap.deselectAllNodes();
-        this.className = 'node node-selected'; // Wow, here "this" is the div element, not this instance.
+    nodeMousedownEvent(event) { 
+        let node = argMapsMgr.getNodeForEvent(event);
+        node.argMap.deselectAllNodes();
+        node.nodeDiv.classList.add(Node.SELECTED_CLASS);
         event.stopPropagation();
-        argMap.diagram.focus(); // Set focus to the diagram so it can receive key events, like delete.
+        node.argMap.diagramWrapper.focus(); // Set focus to the diagram so it can receive key events, like delete.
     }
     selectNode() {
-        this.nodeDiv.className = 'node node-selected';
+        this.nodeDiv.classList.add(Node.SELECTED_CLASS);
     }
     deselectNode() {
-        this.nodeDiv.className = 'node';
+        this.nodeDiv.classList.remove(Node.SELECTED_CLASS);
     }
     refreshArrows() { 
         for (let i = 0; i < this.upperArrows.length; i++){
@@ -310,13 +282,24 @@ class Node {
         option.text = description;
         selector.add(option);
     }
+    _updateNumberAndName() {
+        let prefix = ''; // So weight doesn't run into the number/name.
+        if (this.isIntConclusion || this.isRClaim) prefix = '&nbsp;';
+        this.nodeNameDiv.innerHTML = prefix + this.number_ + ' ' + this.name_;
+    }
     // General getters and setters
-    nodeDiv(){ return this.nodeDiv; }
-    get NodeType() { return this.nodeType_; }
+    get NodeType() { return this.nodeType_; } // No setter so can't be changed.
 
-    get name(){ return this.nodeNameDiv.innerHTML; }
-    set name(text){ this.nodeNameDiv.innerHTML = text; }
-
+    get name(){ return this.name_; }
+    set name(text) { 
+        this.name_ = text;
+        this._updateNumberAndName();
+    }
+    get number() { return this.number_; }
+    set number(newNumber) {
+        this.number_ = newNumber;
+        this._updateNumberAndName();
+    }
     get bodyText(){ return this.nodeBodyText.innerHTML; }
     set bodyText(text){ this.nodeBodyText.innerHTML = text; }
 
@@ -367,7 +350,7 @@ class Node {
     }
     calculateNewLeftForNewOffsetCenterX(x) {
         // Calculate left for a centered node
-        let diagramCenter = argMap.diagram.clientWidth / 2;
+        let diagramCenter = this.argMap.diagram.clientWidth / 2;
         let centeredLeft = diagramCenter - (this.nodeDiv.clientWidth / 2);
         // Now calculate the offset left
         return roundToDiagramGrid(centeredLeft + x);
@@ -376,15 +359,17 @@ class Node {
     get width()  { return this.nodeDiv.clientWidth; };
     set width(width) { this.nodeDiv.style.width = width + 'px'; }
 
-    get weightIndex() { return this.nodeWeightDiv.selectedIndex; }
-    set weightIndex(index)   { this.nodeWeightDiv.selectedIndex = index; }
-
+    get weightIndex() { return this.weightIndex_; }
+    set weightIndex(index) { 
+        this.weightIndex_ = index;
+        this.nodeWeightDiv.innerHTML = argMapsMgr.getNodeWeightDescriptionForIndex(index);
+    }
 } // End class Node
 
 // The node classes
 class NodeConclusion extends Node {
-    constructor() {
-        super(); 
+    constructor(nodeArgMap) {
+        super(nodeArgMap); 
         this.rule = null;
         this.factuals = [];
         this.isConclusion = true;
@@ -395,7 +380,6 @@ class NodeConclusion extends Node {
         this.factuals.removeFirstOccurrance(factual);
     }
     hasRule() {
-        let x = this.rule;
         return ! (this.rule === undefined || this.rule === null);
     }
     calcCL() { // Calculate and set CL for this node. Return the Cl or undefined if unable to calculate.
@@ -406,19 +390,23 @@ class NodeConclusion extends Node {
             let factual = this.factuals[i];
             if (factual.isConclusion) factual.calcCL(); // Facts and RClaims already have a CL.
         }
-        // Determine weight adjustment, so that the sum of the weights = 1. 
+        // Determine weight adjustment, so that the sum of the weights = 1. Also check non zero count.
         let totalWeights = 0;
+        let nonZeroWeightsCount = 0; // Number of factuals with non-zero weights.
         for (let i = 0; i < numberOfFactuals; i++){
             let factual = this.factuals[i];
-            totalWeights += this._getWeightForFactual(factual);
+            let weight = argMapsMgr.getNodeWeightValueForIndex(factual.weightIndex);
+            totalWeights += weight;
+            if (weight > 0) nonZeroWeightsCount++;
         }
         if (totalWeights === 0) return this._setCLToUndefined(); // All weights are zero which makes no sense.
+        if (nonZeroWeightsCount < 2) return this._setCLToUndefined(); // Min of 2 non-zero weights required.
         let weightAdjustment = 1 / totalWeights; // We have avoided dividing by zero.
         // Now calc the CL. This is the weighted average of my factuals' CL times my rule CL.
         let cl = 0;
         for (let i = 0; i < numberOfFactuals; i++){
             let factual = this.factuals[i];
-            let weight = this._getWeightForFactual(factual);
+            let weight = argMapsMgr.getNodeWeightValueForIndex(factual.weightIndex);
             if (weight === 0) continue; // We know that at least one weight > 0.
             if (factual.confidenceLevel === undefined) return this._setCLToUndefined();
             cl += ( factual.confidenceLevel * weight * weightAdjustment );
@@ -426,27 +414,22 @@ class NodeConclusion extends Node {
         this.confidenceLevel = cl * this.rule.confidenceLevel;
         return this.confidenceLevel;
     }
-    _getWeightForFactual(factual) { 
-        // Weights. Later these will be from the database since configurable.
-        const WEIGHTS = [0, .2, .5, .8, 1]; // Zero, low, medium, high, central.
-        return WEIGHTS[factual.weightIndex]; 
-    }
     _setCLToUndefined() {
         this.confidenceLevel = undefined;
         return this.confidenceLevel;
     }
 }
 class NodeClaim extends NodeConclusion {
-    constructor() {
-        super(); 
+    constructor(nodeArgMap) {
+        super(nodeArgMap); 
         this.nodeType = ArgMap.CLAIM;
         this.isClaim = true;
         this.init();
     }
 }
 class NodeIntConclusion extends NodeConclusion {
-    constructor(conclusion) {
-        super(); 
+    constructor(nodeArgMap, conclusion) {
+        super(nodeArgMap); 
         this.nodeType = ArgMap.INTCONCLUSION;
         this.isIntConclusion = true;
         conclusion.addFactual(this);
@@ -454,8 +437,8 @@ class NodeIntConclusion extends NodeConclusion {
     }
 }
 class NodeRule extends Node {
-    constructor(conclusion) {
-        super(); 
+    constructor(nodeArgMap, conclusion) {
+        super(nodeArgMap); 
         this.nodeType = ArgMap.RULE;
         this.isRule = true;
         this.arrowsvg;
@@ -467,14 +450,14 @@ class NodeRule extends Node {
     }
 }
 class NodeLeaf extends Node {
-    constructor() {
-        super(); 
+    constructor(nodeArgMap) {
+        super(nodeArgMap); 
         this.isTypeLeaf = true;
     }
 }
 class NodeFact extends NodeLeaf {
-    constructor(conclusion) {
-        super(); 
+    constructor(nodeArgMap, conclusion) {
+        super(nodeArgMap); 
         this.nodeType = ArgMap.FACT;
         this.isFact = true;
         conclusion.addFactual(this);
@@ -482,8 +465,8 @@ class NodeFact extends NodeLeaf {
     }
 }
 class NodeRClaim extends NodeLeaf {
-    constructor(conclusion) {
-        super(); 
+    constructor(nodeArgMap, conclusion) {
+        super(nodeArgMap); 
         this.nodeType = ArgMap.RCLAIM;
         this.isRClaim = true;
         conclusion.addFactual(this);

@@ -2,57 +2,48 @@
 - class ArgMapInterface
 - class InterfaceNode
 */
-
-import {ArgMap} from "./ArgMap.js"
-
-export default class ArgMapInterface { 
+class ArgMapInterface { 
     // The interface for external use of the argument map system. 
     // Ideally all eternal calls use the interface, except for node methods. This allows updating
     // an existing node, depending on what happens in the text.
-
-    constructor(argMap) {
+    // Problem: Returns a Node, not an InterfaceNode. This breaks encapsulation of the map module. 
+    // Solve by returning the InterfaceNode and modifying that class to serve as a full fascade
+    // for what the rest of the app needs. Don't yet know if this is overkill or problematic. 
+    constructor(argMapKey, argMap) {
         this.argMap = argMap;
     }
-
     addNode(interfaceNode) { // Returns new node if okay or false if not.
         // Check to see the node has been properly prepared.
         if (! interfaceNode.integrityIsOkay() ) { return false; }
-        
-        if ( interfaceNode.nodeType === ArgMap.CLAIM ) {
-            this.argMap.layoutMgr.dropOnEmptyDiagram('Claim', interfaceNode);
-            return this.argMap.getFirstSelectedNode();
 
-        } else if ( interfaceNode.nodeType === ArgMap.RULE ) {
-            this.argMap.layoutMgr.dropOnConclusion('Rule', interfaceNode);
-            return this.argMap.getFirstSelectedNode();
+        interfaceNode.diagram = this.argMap.diagram; // CHANGE LATER =====================
 
-        } else if ( interfaceNode.nodeType === ArgMap.INTCONCLUSION ) {
-            this.argMap.layoutMgr.dropOnRule('IntConclusion', interfaceNode);
-            return this.argMap.getFirstSelectedNode();
-
-        } else if ( interfaceNode.nodeType === ArgMap.FACT ) {
-            this.argMap.layoutMgr.dropOnRule('Fact', interfaceNode);
-            return this.argMap.getFirstSelectedNode();
-
-        } else if ( interfaceNode.nodeType === ArgMap.RCLAIM ) {
-            this.argMap.layoutMgr.dropOnRule('RClaim', interfaceNode);
-            return this.argMap.getFirstSelectedNode();
-
-        } else {
-            return false;
+        switch (interfaceNode.nodeType) { 
+            case ArgMap.CLAIM: 
+                this.argMap.layoutMgr.dropOnEmptyDiagram(ArgMap.CLAIM, interfaceNode);
+                return this.argMap.getFirstSelectedNode();
+            case ArgMap.RULE:
+                this.argMap.layoutMgr.dropOnConclusion(ArgMap.RULE, interfaceNode);
+                return this.argMap.getFirstSelectedNode();    
+            case ArgMap.INTCONCLUSION: case ArgMap.FACT: case ArgMap.RCLAIM:
+                this.argMap.layoutMgr.dropOnRule(interfaceNode.nodeType, interfaceNode);
+                return this.argMap.getFirstSelectedNode();   
+            default:
+                return false;         
         }
     }
     deleteNode(node) { // Returns true or false, depending on success of the delete.
         // *********** To do
     }
     getClaimNode() { // The root of the tree. Returns null if none.
-        return this.argMap.claim;
+        return argMap.claim;
     }
     clearDiagram() {
-        this.argMap.clearDiagram();
+        argMap.clearDiagram();
     }
-}
-export class InterfaceNode { // Used to add nodes to the argument map. They are then discarded.
+} // End ArgMapInterface
+
+class InterfaceNode { // Used to add nodes to the argument map. They are then discarded.
     constructor(nodeType) {
         this.nodeType =  nodeType;  // Claim, Rule, IntConclusion, Fact, or RClaim
         this.confidenceLevel = undefined;  // Reqwuired for Fact, RClaim, Rule.
@@ -63,6 +54,7 @@ export class InterfaceNode { // Used to add nodes to the argument map. They are 
         this.centerOnChildWhenAdded = true; // Default
         this.lowerNode;   // A Conclusion or Rule, required for all types except Claim.
         this.width = 300; // Default
+        this.diagram; 
     }
     get offsetCenterX() { return this.offsetCenterX_; }
     set offsetCenterX(x) {
@@ -72,6 +64,7 @@ export class InterfaceNode { // Used to add nodes to the argument map. They are 
     copyBasicPropertiesToNode(node) { // Copies basic properties from itself to the node
         node.nodeType_ = this.nodeType;
         node.name = this.nodeType; // Here we take advantage of what the node type constants are.
+        // The non-breaking space allows long weight descriptions to not bump into the node name.
         if (node.nodeType === ArgMap.INTCONCLUSION) { node.name = 'Int Conclusion'; }
         if (node.nodeType === ArgMap.RCLAIM)        { node.name = 'Reusable Claim'; }
         node.confidenceLevel = this.confidenceLevel;
@@ -82,7 +75,7 @@ export class InterfaceNode { // Used to add nodes to the argument map. They are 
         node.centerOnChildWhenAdded = this.centerOnChildWhenAdded;
         node.width = this.width;
     }
-    integrityIsOkay() { // Returns true if okay, false if not. Data types are not checked.
+    integrityIsOkay() { // Returns true if okay, false if not. A valid nodeType is not checked.
         // Required properties
         if (! this.nodeType) {
             alert('The nodeType is required in InterfaceNode.');
@@ -116,4 +109,4 @@ export class InterfaceNode { // Used to add nodes to the argument map. They are 
         }
         return true;
     }
-}
+} // End class InterfaceNode 

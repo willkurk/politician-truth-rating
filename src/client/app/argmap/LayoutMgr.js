@@ -1,68 +1,69 @@
 /* Contents:
 - Class LayoutMgr
 - function createArrow
-- Class Row
 - Class Arrow
 - Arrow helper functions
 - Drag functions
+- class RowMgr - Manages the rows for an ArgMap.
+- class Row - Contains the nodes for one row plus row state.
 - Extensions to Javascript Array, like last and removeFirstOccurrance
 */
-
-import {ArgMap} from "./ArgMap.js"
-import {Dragster} from "./Dragster.js"
-
-export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up starting at the bottom.
+class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up starting at the bottom.
     static get ROW_GAP()  { return 30; }
     static get SVG_TYPE() { return 'http://www.w3.org/2000/svg'; }
     
     constructor(diagram, argMap) {
-        this.rows = []; // One Row object per row
         this.diagram = diagram;
         this.argMap = argMap;
-        this.zoomLevel = 1;
-    //    this.pointerDownX;
-    //    this.pointerDownOffsetCenterX;
-        // Language bug - Error of static constant is used in the next line.
+        this.myself = this;
+        this.rowMgr = new RowMgr(this);
+        // Language bug - Error if static constant SVG_TYPE is used in the next line.
         this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); // For all arrows.
-        this.nextArrowIDNumber = 1;
         diagram.appendChild(this.svg);
-        diagram.addEventListener('dragover', this.dragoverEvent, false);
-        diagram.addEventListener('drop', this.dropOnEmptyDiagram, false);
-        this.svg.id = 'arrowsheet';
+        this.svg.id = 'arrow-sheet';
         document.body.setAttribute('touch-action', 'none'); // For use of pointer events
+        diagram.setAttribute(ArgMapsMgr.ARG_MAP_KEY, this.argMap.instanceID);
+        // Arrow functions not used since these listeners will be removed.
+        diagram.addEventListener('dragover', this.dragoverEvent, false);
+        diagram.addEventListener('drop', this.dropOnEmptyDiagram, false );
     }
     dragoverEvent(event){
         event.preventDefault(); // Allows a drop
     }
     dropOnEmptyDiagram(event, interfaceNode){
-        let text;
+        let text, myArgMap;
         if ( typeof event === 'string') { // A manually created event with an interfaceNode.
             text = event;
+            myArgMap = argMapsMgr.getArgMapForDiagram(interfaceNode.diagram);
         } else { // A drag and drop from the textbox with no interfaceNode.
             text = event.dataTransfer.getData('Text');
             event.preventDefault(); // Without this Firefox does a search on the dropped text.
+            myArgMap = argMapsMgr.getArgMapForEvent(event);
         }
         if (text === ArgMap.CLAIM) {
-            if (this.argMap.nodes.length > 0) {
+            if (myArgMap.nodes.length > 0) { 
                 alert("Cannot add a Claim since the diagram is not empty.")
             } else {
                 if (! interfaceNode) { interfaceNode = createTestClaimInterfaceNode(); }
-                this.argMap.layoutMgr._addClaim(interfaceNode);
+                myArgMap.layoutMgr._addClaim(interfaceNode); 
             }
         } else {
             alert('Sorry. You can only add a Claim to an empty diagram.');
         }
     }
-    dropOnConclusion(event, interfaceNode){ // Can only drop rule on a conclusion.
+    dropOnConclusion(event, interfaceNode){ // Can only drop a rule on a conclusion.
+        let myArgMap;
         let text, nodeConclusion;
         if ( typeof event === 'string') { // A manually created event with an interfaceNode.
             text = event;
             nodeConclusion = interfaceNode.lowerNode;
+            myArgMap = argMapsMgr.getArgMapForDiagram(interfaceNode.diagram);
         } else { // A drag and drop from the textbox with no interfaceNode.
             text = event.dataTransfer.getData('Text');
             event.preventDefault(); // Without this Firefox does a search on the dropped text.
             event.currentTarget.classList.remove('node-drop-highlight');
-            nodeConclusion = this.argMap.getNodeForNodeDiv(event.currentTarget);
+            myArgMap = argMapsMgr.getArgMapForEvent(event);
+            nodeConclusion = myArgMap.getNodeForNodeDiv(event.currentTarget);
         }        
         let newNode, arrow;
         switch (text) {
@@ -74,14 +75,14 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
                     alert('Sorry, this conclusion already has a rule.')
                 } else { // Add rule
                     if (! interfaceNode) { interfaceNode = createTestRuleInterfaceNode(nodeConclusion); }
-                    newNode = this.argMap.addNodeRule(nodeConclusion);
+                    newNode = myArgMap.addNodeRule(nodeConclusion);
                     // Note that interfaceNode.lowerNode is used above, not here.
                     interfaceNode.copyBasicPropertiesToNode(newNode);
-                    this.argMap.selectJustOneNode(newNode);
-                    this.argMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
+                    myArgMap.selectJustOneNode(newNode); 
+                    myArgMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
                     nodeConclusion.rule = newNode;
-                    createArrow(this.argMap, newNode, nodeConclusion);
-                    this.argMap.layoutMgr._switchDropEventsFromConclusionToRule(nodeConclusion, newNode);
+                    createArrow(newNode, nodeConclusion);
+                    myArgMap.layoutMgr._switchDropEventsFromConclusionToRule(nodeConclusion, newNode);
                 }
                 break;
             default:
@@ -90,16 +91,18 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
         }
     }
     dropOnRule(event, interfaceNode){ // Can only drop IntConclusion, Fact, RClaim on a rule.
-        let text, nodeRule, nodeConclusion;
+        let text, nodeRule, nodeConclusion, myArgMap;
         if ( typeof event === 'string') { // A manually created event with an interfaceNode.
             text = event;
             nodeRule = interfaceNode.lowerNode;
             nodeConclusion = nodeRule.conclusion;
+            myArgMap = argMapsMgr.getArgMapForDiagram(interfaceNode.diagram);
         } else { // A drag and drop from the textbox with no interfaceNode.
             text = event.dataTransfer.getData('Text');
             event.preventDefault(); // Without this Firefox does a search on the dropped text.
             event.currentTarget.classList.remove('node-drop-highlight');
-            nodeRule = this.argMap.getNodeForNodeDiv(event.currentTarget);
+            myArgMap = argMapsMgr.getArgMapForEvent(event);
+            nodeRule = myArgMap.getNodeForNodeDiv(event.currentTarget);
             nodeConclusion = nodeRule.conclusion;
         }        
         let newNode, arrow;
@@ -109,31 +112,31 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
                 break;
             case ArgMap.INTCONCLUSION:
                 if (! interfaceNode) { interfaceNode = createTestIntConclusionInterfaceNode(nodeConclusion); }
-                newNode = this.argMap.addNodeIntConclusion(nodeConclusion);
+                newNode = myArgMap.addNodeIntConclusion(nodeConclusion);
                 interfaceNode.copyBasicPropertiesToNode(newNode);
-                this.argMap.selectJustOneNode(newNode);
-                this.argMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
-                createArrow(this.argMap, newNode, nodeConclusion.rule);
-                this.argMap.layoutMgr._addDropEventsToConclusion(newNode); 
-                this.argMap.layoutMgr._addWeightEvent(newNode);
+                myArgMap.selectJustOneNode(newNode);
+                myArgMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
+                createArrow(newNode, nodeConclusion.rule);
+                myArgMap.layoutMgr._addDropEventsToConclusion(newNode); 
+                myArgMap.layoutMgr._addWeightEvent(newNode);
                 break;
             case ArgMap.FACT:
                 if (! interfaceNode) { interfaceNode = createTestFactInterfaceNode(nodeConclusion);}
-                newNode = this.argMap.addNodeFact(nodeConclusion);
+                newNode = myArgMap.addNodeFact(nodeConclusion);
                 interfaceNode.copyBasicPropertiesToNode(newNode);
-                this.argMap.selectJustOneNode(newNode);
-                this.argMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
-                createArrow(this.argMap, newNode, nodeConclusion.rule);
-                this.argMap.layoutMgr._addWeightEvent(newNode);
+                myArgMap.selectJustOneNode(newNode);
+                myArgMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
+                createArrow(newNode, nodeConclusion.rule);
+                myArgMap.layoutMgr._addWeightEvent(newNode);
                 break;
             case ArgMap.RCLAIM:
                 if (! interfaceNode) { interfaceNode = createTestRClaimInterfaceNode(nodeConclusion);}
-                newNode = this.argMap.addNodeRClaim(nodeConclusion);
+                newNode = myArgMap.addNodeRClaim(nodeConclusion);
                 interfaceNode.copyBasicPropertiesToNode(newNode);
-                this.argMap.selectJustOneNode(newNode);
-                this.argMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
-                createArrow(this.argMap, newNode, nodeConclusion.rule);
-                this.argMap.layoutMgr._addWeightEvent(newNode);
+                myArgMap.selectJustOneNode(newNode);
+                myArgMap.layoutMgr._addNodeToConclusion(newNode, nodeConclusion);
+                createArrow(newNode, nodeConclusion.rule);
+                myArgMap.layoutMgr._addWeightEvent(newNode);
                 break;
             default:
                 alert('Sorry. Please drag and drop a valid node type.');
@@ -142,6 +145,8 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
     }
     dropTargetDragenter(event){
         event.preventDefault();
+        let node = argMapsMgr.getNodeForEvent(event);
+        node.argMap.deselectAllNodes();
         event.currentTarget.classList.add('node-drop-highlight');
         //event.currentTarget.classList.add('node-drop-disable-pointer-events');
     }
@@ -151,9 +156,9 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
         //event.currentTarget.classList.remove('node-drop-disable-pointer-events');
     }
     weightSelected(event) {
-        let node = this.argMap.getNodeForNodeDiv(this);
+        let node = argMap.getNodeForNodeDiv(this);
         node.weightIndex = node.nodeWeightDiv.options.selectedIndex;
-        this.argMap.claim.calcCL();
+        argMap.claim.calcCL();
     }
     _addWeightEvent(node) {
         node.nodeDiv.addEventListener('change', this.weightSelected, false);
@@ -162,6 +167,7 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
     _addDropEventsToConclusion(node){
         this._addGeneralDropEvents(node);
         node.nodeDiv.addEventListener('drop', this.dropOnConclusion, false);
+        //node.nodeDiv.addEventListener('drop', ()=>{ this.dropOnConclusion(event); }, false );
     }
     _switchDropEventsFromConclusionToRule(nodeConclusion, nodeRule){
         // Add drop events to rule, remove drop events from conclusion.
@@ -198,20 +204,18 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
     _addClaim(interfaceNode) { // Should combine this with _addNodeToConclusion(). TO DO
         let node = this.argMap.addNodeClaim();
         interfaceNode.copyBasicPropertiesToNode(node);
-        // Create the new row
-        let rowHeight = node.height; 
-        let rowTop   = (this.diagram.clientHeight / 2) - (rowHeight / 2);
-        let row = new Row(rowTop, rowHeight, 1);
-        this.rows.push(row); 
+        let row = this.rowMgr.createNewTopRow(node)
         node.setRow(row);
+        row.addNode(node);
         // Center node on diagram if necessary.
         if (node.centerOnChildWhenAdded) node.offsetCenterX = 0;
         // Now the claim is the drop area. Really any conclusion is a drop area. 
-        diagram.removeEventListener('dragover', this.dragoverEvent, false);
-        diagram.removeEventListener('drop', this.dropOnEmptyDiagram, false);
+        this.diagram.removeEventListener('dragover', this.dragoverEvent, false);
+        this.diagram.removeEventListener('drop', this.dropOnEmptyDiagram, false);
         this._addDropEventsToConclusion(node);
         this.argMap.selectJustOneNode(node);
         node.calcCL();
+        this.rowMgr.renumberAllNodes();
     }
     _addNodeToConclusion(node, nodeConclusion) {
         // Create the new row if necessary. 
@@ -221,18 +225,14 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
         // If rows have nodes, could search rows to determine a node's row number.
         let newNodeRowNumber = conclusionRowNumber + 1; // For a rule
         if (! node.isRule) { newNodeRowNumber = conclusionRowNumber + 2; } // Not a rule 
-        if (newNodeRowNumber > this.rows.length){ 
-            // Create new row
-            let rowHeight = node.height;
-            let lastRow = this.rows.last();
-            let rowTop = lastRow.top - LayoutMgr.ROW_GAP - rowHeight; 
-            row = new Row(rowTop, rowHeight, this.rows.length + 1);
-            this.rows.push(row);
+        if (newNodeRowNumber > this.rowMgr.numberOfRows) { 
+            row = this.rowMgr.createNewTopRow(node)
             recenterNeeded = true;
         } else {
-            row = this.rows[newNodeRowNumber - 1];
+            row = this.rowMgr.getRow(newNodeRowNumber);
         }
         node.setRow(row); 
+        row.addNode(node);
         // Center node. 
         if (node.centerOnChildWhenAdded) { 
             if ( node.isRule ) {
@@ -241,52 +241,20 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
                 node.offsetCenterX = nodeConclusion.rule.offsetCenterX;
             }
         }
-        if (recenterNeeded) this.verticallyRecenterAllRows(); 
+        if (recenterNeeded) this.rowMgr.verticallyRecenterAllRows(); 
         this.argMap.claim.calcCL();
+        this.rowMgr.renumberAllNodes();
     }
     _checkDiagramOverflow() {
         // Check for vertical and horizontal overflow.
         let minTop = 9999, maxBottom = -9999, minLeft = 9999, maxRight = -9999;
-        for (let i = 0; i < this.argMap.nodes.length; i++){
-            let node = this.argMap.nodes[i];
+        for (let i = 0; i < argMap.nodes.length; i++){
+            let node = argMap.nodes[i];
             if ( node.top < minTop ) minTop = node.top;
             if ( node.bottom > maxBottom ) maxBottom = node.bottom;
             if ( node.left < minLeft ) minLeft = node.left;
             if ( node.right > maxRight ) maxRight = node.right;
         }    
-        // transform: scale(2, 2);
-        // transform-origin: center center;
-    }
-    // NOTE - Need RowMgr to handle all this, especially once node heights can change after added.
-    // Will need for each row to have its nodes for much easier operation.
-    verticallyRecenterAllRows() { // Used when row added or node deleted to keep map centered vertically on diagram.
-        // Automatic housecleaning. If top row is empty, delete it.
-        let hightestRowNumber = 0;
-        for (let i = 0; i < this.argMap.nodes.length; i++){
-            let node = this.argMap.nodes[i];
-            if ( node.row.number > hightestRowNumber ) hightestRowNumber = node.row.number;
-        }
-        if ( hightestRowNumber < this.rows.length ) this.rows.pop();
-        // More automatic housecleaning. The diagram may need shrinking or expanding.
-//        this._checkDiagramOverflow();
-        // Prepare to shift
-        let rowsTop = this.rows.last().top;
-        let rowsBottom = this.rows[0].top + this.rows[0].height;
-        let rowsHeight = rowsBottom - rowsTop;
-        let diagramHeight = this.diagram.clientHeight;
-        let desiredRowsTop = (diagramHeight - rowsHeight) / 2;
-        let rowShift = desiredRowsTop - rowsTop;
-        // Shift rows. Must do this before shift nodes.
-        for (let i = 0; i < this.rows.length; i++){
-            let row = this.rows[i];
-            row.top += rowShift;
-        }
-        // Shift nodes
-        for (let i = 0; i < this.argMap.nodes.length; i++){
-            let node = this.argMap.nodes[i];
-            node.top = node.row.top;
-            node.refreshArrows();
-        }
     }
     horizontallyRecenterAllNodes() { // Considering the fartherest left and right node edges.
         let diagramWidth = this.diagram.clientWidth;
@@ -310,33 +278,22 @@ export class LayoutMgr { // Manages diagram layout. Rows are numbered 1 and up s
             node.offsetCenterX = newOffsetCenterX;
             node.refreshArrows();
         }
-
     }
     // Zoom feature
-    zoomIn()     { this.zoomLevel -= .1; this._setZoomLevel(); }    
-    zoomOut()    { this.zoomLevel += .1; this._setZoomLevel(); }
-    zoomNormal() { this.zoomLevel  =  1; this._setZoomLevel(); }
+    zoomSmaller(){ this.argMap.zoomLevel -= .1; this._setZoomLevel(); }    
+    zoomLarger() { this.argMap.zoomLevel += .1; this._setZoomLevel(); }
+    zoomNormal() { this.argMap.zoomLevel  =  1; this._setZoomLevel(); }
     _setZoomLevel() {
-        this.diagram.style.transform = 'scale(' + this.zoomLevel + ', ' + this.zoomLevel + ')';  
-        // Much more to do here....
-        
-        
+        if (this.argMap.zoomLevel > 1) this.argMap.zoomLevel = 1;
+        this.diagram.style.transform = 'scale(' + this.argMap.zoomLevel + ', ' + this.argMap.zoomLevel + ')';
     }
 } // End class LayoutMgr
-function createArrow (argMap,upperNode, lowerNode){
-    let id = 'arrow' + argMap.layoutMgr.nextArrowIDNumber++;
-    let arrow = new Arrow(upperNode, lowerNode, id, argMap.layoutMgr.svg);
+function createArrow (upperNode, lowerNode){
+    let id = 'arrow' + argMapsMgr.getNextArrowIDNumber();
+    let arrow = new Arrow(upperNode, lowerNode, id, upperNode.argMap.layoutMgr.svg);
     lowerNode.upperArrows.push(arrow);
     upperNode.lowerArrow = arrow;           
     upperNode.refreshArrows();
-}
-class Row { // May later have nodes on the row, for collision detection and layout. 
-    constructor(top, height, number) {
-        this.GAP = 30;
-        this.top = top;
-        this.height = height;
-        this.number = number;
-    }
 }
 class Arrow {
     static get COLOR() { return 'gray' }
@@ -417,34 +374,31 @@ function calculateTopY(node)    { return node.top; }
 
 // Node drag functions. Basic concept from https://codepen.io/terabaud/pen/rmJoee.
 // makeNodeDraggable should be a class method, not an isolated function.
-var pointer = {};
-var moveListener;
-
-export function makeNodeDraggable(node, argMap) {
-    moveListener = (function(event) {layoutPointerMove(event, argMap)})
-
-    node.nodeDiv.addEventListener('pointerdown',  (function(event) {layoutPointerDown(event, argMap)}), false);
-    node.nodeDiv.addEventListener('pointerup',    (function(event) {layoutPointerUp(event, argMap)}),   false);
+function makeNodeDraggable(node) {
+    node.nodeDiv.addEventListener('pointerdown',  layoutPointerDown, false);
+    node.nodeDiv.addEventListener('pointerup',    layoutPointerUp,   false);
     // To fix browser bug. Pointerup is never called if drag release is not over the node.
-    node.nodeDiv.addEventListener('pointerleave', (function(event) {layoutPointerUp(event, argMap)}),   false);
+    node.nodeDiv.addEventListener('pointerleave', layoutPointerUp,   false);
 }
-
-
-function layoutPointerDown(event, argMap) {
-    let node = argMap.getNodeForNodeDiv(event.currentTarget);
-    node.nodeDiv.addEventListener('pointermove', moveListener, false);
-    pointer.pointerDownX = event.clientX; // Sets this property on div.node, not class LayoutMgr !!!
-    pointer.pointerDownY = event.clientY; // Not yet used. For move a factual to another rule.
-    pointer.pointerDownOffsetCenterX = node.offsetCenterX;
+function layoutPointerDown(event) {
+    let node = argMapsMgr.getNodeForEvent(event);
+//let node = argMap.getNodeForNodeDiv(this);
+    node.nodeDiv.addEventListener('pointermove', layoutPointerMove, false);
+    this.pointerDownX = event.clientX; // Sets this property on div.node, not class LayoutMgr !!!
+    this.pointerDownY = event.clientY; // Not yet used. For move a factual to another rule.
+    this.pointerDownOffsetCenterX = node.offsetCenterX;
 }
-function layoutPointerUp(event, argMap) {
-    let node = argMap.getNodeForNodeDiv(event.currentTarget);
-    node.nodeDiv.removeEventListener('pointermove', moveListener, false);
+function layoutPointerUp(event) {
+//let node = argMap.getNodeForNodeDiv(this);
+    let node = argMapsMgr.getNodeForEvent(event);
+    node.nodeDiv.removeEventListener('pointermove', layoutPointerMove, false);
 }
-function layoutPointerMove(event, argMap) {
-    let node = argMap.getNodeForNodeDiv(event.currentTarget);
-    let totalMoveX = event.clientX - pointer.pointerDownX; // Positive to move right, negative to move left.
-    let newOffsetCenterX = pointer.pointerDownOffsetCenterX + totalMoveX;
+function layoutPointerMove(event) {
+    let node = argMapsMgr.getNodeForEvent(event);
+//let node = argMap.getNodeForNodeDiv(this);
+    let totalMoveX = event.clientX - this.pointerDownX; // Positive to move right, negative to move left.
+    totalMoveX = totalMoveX * (1 / node.argMap.zoomLevel); // A crucial adjustment.
+    let newOffsetCenterX = this.pointerDownOffsetCenterX + totalMoveX;
     // Is this a big enough move to do, considering grid snap?
     let newLeft = node.calculateNewLeftForNewOffsetCenterX(newOffsetCenterX);
     if (newLeft === node.left) return;
@@ -464,15 +418,115 @@ function layoutPointerMove(event, argMap) {
             if (tooFarLeft > 0 || tooFarRight > 0) return;               
         }
     }
+    // Zoom may be in effect. If so, diagram is smaller than diagramWrapper. 
+    // This kludge causes node.left to go negative, since left is relative to the diagram. 
+    // Use getBoundingClientRect() to calc the extra margin available on left and right.
+    // Some complexity due to left being scaled and the different scales in diagram and diagramWrapper.
+    let trueDiagramWidth = node.argMap.diagram.getBoundingClientRect().width;
+    let horizontalScale = trueDiagramWidth / node.argMap.diagram.clientWidth;
+    let extraMargin = (node.argMap.diagramWrapper.clientWidth - trueDiagramWidth) / 2;
+    extraMargin = extraMargin * ( 1 / horizontalScale ); // Scale it.
     // Keep the left edge of the node inside the padded container.
-    if (newLeft < ArgMap.DIAGRAM_PADDING) return;
+    if (newLeft + extraMargin < ArgMap.DIAGRAM_PADDING) return;
     // Keep the right edge of the node inside the padded container.
-    let diagramWidth = argMap.diagram.clientWidth;
-    let maxAllowableRight = diagramWidth - ArgMap.DIAGRAM_PADDING;
+    let maxAllowableRight = node.argMap.diagram.clientWidth - ArgMap.DIAGRAM_PADDING + extraMargin;
     if (newLeft + node.width > maxAllowableRight) return;
     // Done. Update the node offset and refresh the arrows. 
     node.offsetCenterX = newOffsetCenterX;
     node.refreshArrows(); 
+    node.argMap.layoutMgr.rowMgr.renumberAllNodes();
+}
+class RowMgr {
+    constructor(layoutMgr) {
+        this.layoutMgr = layoutMgr;
+        this.rows = [];
+    }
+    get numberOfRows() { return this.rows.length; }
+
+    createNewTopRow(node) { // For all but claim, done by above, refactor.
+        let rowHeight = node.height;
+        let rowTop, rowNumber;
+        if (this.numberOfRows === 0) { // A claim is being added to an empty diagram.
+            rowTop   = (this.layoutMgr.diagram.clientHeight / 2) - (rowHeight / 2);
+            rowNumber = 1;
+        } else {
+            let lastRow = this.rows.last();
+            rowTop = lastRow.top - LayoutMgr.ROW_GAP - rowHeight; 
+            rowNumber = this.numberOfRows + 1;
+        }
+        let row = new Row(rowTop, rowHeight, rowNumber);
+        this.rows.push(row);
+        return row;
+    }
+    getRow(rowNumber) { // One based
+        return this.rows[rowNumber - 1];
+    }
+    verticallyRecenterAllRows() { // Used when row added or node deleted to keep map centered vertically on diagram.
+        // Automatic housecleaning. If top row is empty, delete it.
+        let lastRow = this.rows.last();
+        if (lastRow.numberOfNodes() === 0) this.rows.pop();
+        // NOTE - Delete this old code once fully tested. It was replaced by the above 2 lines.
+        // let hightestRowNumber = 0;
+        // for (let i = 0; i < this.layoutMgr.argMap.nodes.length; i++){
+        //     let node = this.layoutMgr.argMap.nodes[i];
+        //     if ( node.row.number > hightestRowNumber ) hightestRowNumber = node.row.number;
+        // }
+        // if ( hightestRowNumber < this.rows.length ) this.rows.pop();
+
+        // More automatic housecleaning. The diagram may need shrinking or expanding.
+        // Prepare to shift
+        let rowsTop = this.rows.last().top;
+        let rowsBottom = this.rows[0].top + this.rows[0].height;
+        let rowsHeight = rowsBottom - rowsTop;
+        let diagramHeight = this.layoutMgr.diagram.clientHeight;
+        let desiredRowsTop = (diagramHeight - rowsHeight) / 2;
+        let rowShift = desiredRowsTop - rowsTop;
+        // Shift rows. Must do this before shift nodes.
+        for (let i = 0; i < this.rows.length; i++){
+            let row = this.rows[i];
+            row.top += rowShift;
+        }
+        // Shift nodes
+        for (let i = 0; i < this.layoutMgr.argMap.nodes.length; i++){
+            let node = this.layoutMgr.argMap.nodes[i];
+            node.top = node.row.top;
+            node.refreshArrows();
+        }
+    }
+    renumberAllNodes() { // Sets node.number for all nodes.
+        // Start at one, left to right, top to bottom, like reading order.
+        let startingNumber = 1;     
+        for (let i = this.rows.length - 1; i > -1; i--) {
+            let row = this.rows[i];
+            row.arrangeNodesOnRowFromLeftToRight();
+            startingNumber = row.setNodeNumbersForNodesOnMyRow(startingNumber);
+        }
+    }
+}
+class Row { 
+    constructor(top, height, number) {
+        this.GAP = 30;
+        this.top = top;
+        this.height = height;
+        this.number = number;
+        this.nodes = [];
+    }
+    addNode(node)    { this.nodes.push(node); }
+    removeNode(node) { this.nodes.removeFirstOccurrance(node); }
+    numberOfNodes()  { return this.nodes.length; }
+
+    arrangeNodesOnRowFromLeftToRight() { // For use in automatic node numbering.
+        this.nodes.sort(function (node1, node2) {
+            return node1.left - node2.left;
+        });
+    }
+    setNodeNumbersForNodesOnMyRow(startingNumber) { // Does it and returns starting number for next row.
+        for (let i = 0; i < this.nodes.length; i++) {
+            let node = this.nodes[i];
+            node.number = startingNumber++;
+        }
+        return startingNumber;
+    }
 }
 // ===== LIBRARY =====
 // Methods added to array

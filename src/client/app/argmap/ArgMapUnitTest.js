@@ -1,48 +1,49 @@
 /* Contents:
+- function clearSampleDiagram()
 - function runArgMapUnitTest()
 - functions for creating the five basic types of test nodes.
 - function runHorizontaRecenterTest()
 */
+const TEST_ARG_MAP_KEY = '1';
 
-import ArgMapInterface from "./ArgMapInterface.js"
-import {InterfaceNode} from "./ArgMapInterface.js"
-
-
-export function createSampleArgumentMap(argMap) { 
-    argMap.clearDiagram();
-    let interfaceObj = new ArgMapInterface(argMap);
+function clearSampleDiagram() {
+    argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).clearDiagram();
+}
+function createSampleArgumentMap() { 
+    clearSampleDiagram();
+    let interface = argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).interface;
     let interfaceNode;
 
     // Add Claim
-    let claimNode = interfaceObj.addNode( createTestClaimInterfaceNode() );
+    let claimNode = interface.addNode( createTestClaimInterfaceNode() );
 
     // Add Rule to Claim
     interfaceNode = createTestRuleInterfaceNode(claimNode);
-    let rule1Node = interfaceObj.addNode( interfaceNode );
+    let rule1Node = interface.addNode( interfaceNode );
 
     // Add IntConclusion to Rule, move it to the left
     interfaceNode = createTestIntConclusionInterfaceNode(rule1Node);
     interfaceNode.offsetCenterX = -180;
-    let intConclusion1Node = interfaceObj.addNode( interfaceNode );
+    let intConclusion1Node = interface.addNode( interfaceNode );
 
     // Add Fact to the Rule, move it to the right
     interfaceNode = createTestFactInterfaceNode(rule1Node);
     interfaceNode.offsetCenterX =130;
-    interfaceObj.addNode( interfaceNode );
+    interface.addNode( interfaceNode );
 
     // Add Rule to the IntConclusion, do not move, looks fine where it is.
     interfaceNode = createTestRuleInterfaceNode(intConclusion1Node);
-    let rule2Node = interfaceObj.addNode( interfaceNode );
+    let rule2Node = interface.addNode( interfaceNode );
 
     // Add RClaim to above rule, move it to the left
     interfaceNode = createTestRClaimInterfaceNode(rule2Node);
     interfaceNode.offsetCenterX = -250;
-    interfaceObj.addNode( interfaceNode );
+    interface.addNode( interfaceNode );
 
     // Add Fact to above rule, move it to the right
     interfaceNode = createTestFactInterfaceNode(rule2Node);
     interfaceNode.offsetCenterX = 60;
-    interfaceObj.addNode( interfaceNode );
+    interface.addNode( interfaceNode );
 }
 // Create the five basic types of test nodes
 function createTestClaimInterfaceNode() {
@@ -67,7 +68,7 @@ function createTestIntConclusionInterfaceNode(rule) {
     node.bodyText  = "This is a rather long intermediate conclusion, one that will not hold up under analysis.";
     node.confidenceLevel = 1;
     node.lowerNode = rule;
-    node.weightIndex = 2; // How to best handle this?
+    node.weightIndex = 2; 
     return node;
 }
 function createTestFactInterfaceNode(conclusion) {
@@ -76,7 +77,7 @@ function createTestFactInterfaceNode(conclusion) {
     node.bodyDatabase = "This is the fact in the database.";
     node.confidenceLevel = .8;
     node.lowerNode = conclusion;
-    node.weightIndex = 3; // How to best handle this?
+    node.weightIndex = 3; 
     return node;
 }
 function createTestRClaimInterfaceNode(conclusion) {
@@ -85,12 +86,12 @@ function createTestRClaimInterfaceNode(conclusion) {
     node.bodyDatabase = "This is the text in the database.";
     node.confidenceLevel = .65;
     node.lowerNode = conclusion;
-    node.weightIndex = 0; // How to best handle this? 
+    node.weightIndex = 1; 
     return node;
 }
 // Other
 function runHorizontaRecenterTest() {
-    argMap.layoutMgr.horizontallyRecenterAllNodes();
+    argMapsMgr.getArgMapForKey(TEST_ARG_MAP_KEY).layoutMgr.horizontallyRecenterAllNodes();
 }
 // Not used
 // function showBkgPhoto() {
